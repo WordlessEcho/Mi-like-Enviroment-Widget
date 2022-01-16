@@ -1,6 +1,8 @@
 # Mi like Enviroment Widget
-[compare at light mode](/compare-light.PNG?raw=true)
-[compare at dark mode](/compare-dark.PNG?raw=true)
+<p align="middle">
+  <img src="/compare-light.PNG?raw=true" width="45%" alt="compare in light mode" />
+  <img src="/compare-dark.PNG?raw=true" width="45%" alt="compare in dark mode" />
+</p>
 
 ## Install
 You need to connect your censors to [Home Assistant](https://www.home-assistant.io/) before you start.
