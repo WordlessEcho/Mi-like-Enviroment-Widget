@@ -1,31 +1,34 @@
+// https://github.com/WordlessEcho/Mi-like-Enviroment-Widget
 // Get token in [Your Home Assistant profile] -> Long-Lived Access Tokens
 const hassApi = {
-  address: "http://example.com:8123",
-  token: "SECRET"
+  address: 'http://example.com:8123',
+  token: 'SECRET'
 };
+// Use cache if API was no response after this interval
+const timeout = 2;
 
 // Text showing on top
-const homeName = "Home";
-const accentColor = { hex: "#5eb8be", alpha: 1.0 };
+const homeName = 'Home';
+const accentColor = { hex: '#5eb8be', alpha: 1.0 };
 
 const censors = [
   // Data will be display as "PM 2.5: 1ug/m³"
   // Check your entity_id at Configuration -> Devices & Services -> Entities
 
   {
-    entity_id: "sensor.example_temperature",
-    prefix: "",
-    suffix: "°"
+    entity_id: 'sensor.example_temperature',
+    prefix: '',
+    suffix: '°'
   },
   {
-    entity_id: "sensor.example_humidity",
-    prefix: "",
-    suffix: "%"
+    entity_id: 'sensor.example_humidity',
+    prefix: '',
+    suffix: '%'
   },
   {
-    entity_id: "sensor.example_pm2_5",
-    prefix: "PM 2.5: ",
-    suffix: "ug/m³"
+    entity_id: 'sensor.example_pm2_5',
+    prefix: 'PM 2.5: ',
+    suffix: 'ug/m³'
   }
 ];
 
@@ -33,9 +36,10 @@ const censors = [
 const getStates = async () => {
   const request = new Request(`${hassApi.address}/api/states`);
   request.headers = {
-    "Authorization": `Bearer ${hassApi.token}`,
-    "content-type": "application/json"
+    'Authorization': `Bearer ${hassApi.token}`,
+    'content-type': 'application/json'
   };
+  request.timeoutInterval = timeout;
 
   return await request.loadJSON();
 };
@@ -74,21 +78,49 @@ const createWidget = async () => {
   header.font = Font.systemFont(15);
 
   // Initialize values
-  const states = await getStates();
-  const strings = mergeString(getValues(states));
-  const iterator = strings.values();
+  let states = [];
+
+  try {
+    states = await getStates();
+  } catch (e) {
+    // We will use the cache later
+    console.warn(e);
+  }
+
+  // Use cache if API is unavailable
+  let strings = mergeString(getValues(states));
 
   // Bottom align other stacks
   widget.addSpacer();
 
   const bodyStack = widget.addStack();
 
-  // No info
-  if (typeof strings === 'undefined' || strings.length <= 0) {
-    bodyStack.addText('Did you set entity_id of censors?');
+  const fm = FileManager.local();
+  const cachePath = `${fm.cacheDirectory()}cache.js`
 
-    return widget;
+  // API is unavailable
+  if (typeof strings === 'undefined' || strings.length <= 0) {
+    if (fm.fileExists(cachePath)) {
+      const data = fm.readString(cachePath);
+      try {
+        strings = JSON.parse(data);
+      } catch (e) {
+        // It should never be happened if cache saved properly
+        bodyStack.addText(`Please report to developer: ${e.message}`);
+
+        return widget;
+      }
+    } else {
+      bodyStack.addText('Did you set entity_id of censors?');
+
+      return widget;
+    }
+  } else {
+    // writing into the cache
+    fm.writeString(cachePath, JSON.stringify(strings));
   }
+
+  const iterator = strings.values();
 
   // Biggest info
   const mainValue = iterator.next().value
@@ -113,7 +145,7 @@ const createWidget = async () => {
       const spliter = footerStack.addStack();
       const rightFooterStack = footerStack.addStack();
 
-      const split = spliter.addText(" | ");
+      const split = spliter.addText(' | ');
       split.font = Font.systemFont(13);
     
       const right = rightFooterStack.addText(rightValue);
